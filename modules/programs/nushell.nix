@@ -230,9 +230,18 @@ in
           writeConfig =
             cfg.configFile != null || cfg.extraConfig != "" || aliasesStr != "" || cfg.settings != { };
 
-          aliasesStr = lib.concatLines (
-            lib.mapAttrsToList (k: v: "alias ${toNushell { } k} = ${v}") cfg.shellAliases
-          );
+          # Filters aliases with multiple commands and converts them into functions
+          aliasesStr =
+            lib.concatLines (
+              lib.mapAttrsToList (k: v: "alias ${toNushell { } k} = ${v}") (
+                lib.filterAttrs (_n: v: !lib.strings.hasInfix ";" v) cfg.shellAliases
+              )
+            )
+            + lib.concatLines (
+              lib.mapAttrsToList (k: v: "def ${toNushell { } k} [] { ${v} }") (
+                lib.filterAttrs (_n: v: lib.strings.hasInfix ";" v) cfg.shellAliases
+              )
+            );
         in
         lib.mkIf writeConfig {
           "${cfg.configDir}/config.nu".text = lib.mkMerge [
